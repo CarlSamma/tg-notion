@@ -2,7 +2,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
-.env.*
+.env.local
+.env.*.local
 *.egg-info/
 dist/
 build/
@@ -19,7 +20,9 @@ Ngrok/
 # various docs/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
