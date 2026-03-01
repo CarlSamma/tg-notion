@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.DS_Store
+
+# Ngrok files
+ngrok.exe
+ngrok.zip
+Ngrok/
+
+# Various docs (se non vuoi committarli)
+# various docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db

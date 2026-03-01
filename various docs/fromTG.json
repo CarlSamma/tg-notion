@@ -1,0 +1,23 @@
+{
+    "ok": true,
+    "result": [
+        {
+            "update_id": 366209292,
+            "channel_post": {
+                "message_id": 4,
+                "sender_chat": {
+                    "id": -1003897321914,
+                    "title": "Tg notion",
+                    "type": "channel"
+                },
+                "chat": {
+                    "id": -1003897321914,
+                    "title": "Tg notion",
+                    "type": "channel"
+                },
+                "date": 1772373340,
+                "text": "prova"
+            }
+        }
+    ]
+}
