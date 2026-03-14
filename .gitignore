@@ -10,6 +10,7 @@ build/
 .venv/
 venv/
 .DS_Store
+MIEINFO.txt
 
 # Ngrok files
 ngrok.exe
