@@ -1,85 +1,80 @@
 """
-Summarizer: usa Claude API per generare titolo, bullet points e tag.
-Sentiment RIMOSSO.
-Limite URL/articoli aumentato a 9.000 caratteri.
+Summarizer v4 — Claude API.
+Genera: title, bullets, tags, categoria, language.
+Sentiment: RIMOSSO.
 """
 
-import os
-import json
-import logging
-import httpx
+import os, json, logging, httpx
 
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 SOURCE_LABELS = {
-    "youtube": "Video YouTube",
-    "vimeo": "Video Vimeo",
-    "twitter": "Post Twitter/X",
-    "threads": "Post Threads",
-    "web": "Articolo Web",
-    "pdf": "Documento PDF",
-    "pdf_url": "Documento PDF",
-    "image": "Immagine",
-    "note": "Nota",
+    "youtube": "Video YouTube", "vimeo":   "Video Vimeo",
+    "twitter": "Post Twitter/X","threads": "Post Threads",
+    "web":     "Articolo Web",  "pdf":     "Documento PDF",
+    "pdf_url": "Documento PDF", "image":   "Immagine",
+    "note":    "Nota",
 }
 
-# Limite caratteri per tipo sorgente
 CHAR_LIMITS = {
-    "web":     9000,
-    "youtube": 9000,
-    "vimeo":   9000,
-    "twitter": 6000,
-    "threads": 6000,
-    "pdf":     10000,
-    "pdf_url": 10000,
-    "image":   6000,
-    "note":    6000,
+    "web": 9000, "youtube": 9000, "vimeo": 9000,
+    "twitter": 6000, "threads": 6000,
+    "pdf": 10000, "pdf_url": 10000,
+    "image": 6000, "note": 6000,
 }
+
+CATEGORIE = [
+    "Tecnologia", "Intelligenza Artificiale", "Business & Startup",
+    "Politica & Società", "Scienza & Ricerca", "Design & Creatività",
+    "Economia & Finanza", "Salute & Benessere", "Cultura & Arte",
+    "Sport", "Intrattenimento", "Altro",
+]
 
 
 def build_prompt(raw: dict, source_type: str) -> str:
     label = SOURCE_LABELS.get(source_type, "Contenuto")
     char_limit = CHAR_LIMITS.get(source_type, 6000)
+    categorie_str = ", ".join(f'"{c}"' for c in CATEGORIE)
 
-    content_parts = []
-    if raw.get("title"):
-        content_parts.append(f"TITOLO ORIGINALE: {raw['title']}")
-    if raw.get("author"):
-        content_parts.append(f"AUTORE: {raw['author']}")
-    if raw.get("published_date"):
-        content_parts.append(f"DATA: {raw['published_date']}")
-    if raw.get("description"):
-        content_parts.append(f"DESCRIZIONE: {raw['description']}")
-    if raw.get("caption"):
-        content_parts.append(f"CAPTION UTENTE: {raw['caption']}")
-    if raw.get("raw_text"):
-        content_parts.append(f"CONTENUTO:\n{raw['raw_text'][:char_limit]}")
+    parts = []
+    if raw.get("title"):        parts.append(f"TITOLO ORIGINALE: {raw['title']}")
+    if raw.get("author"):       parts.append(f"AUTORE: {raw['author']}")
+    if raw.get("published_date"): parts.append(f"DATA: {raw['published_date']}")
+    if raw.get("description"):  parts.append(f"DESCRIZIONE: {raw['description']}")
+    if raw.get("caption"):      parts.append(f"CAPTION: {raw['caption']}")
+    if raw.get("raw_text"):     parts.append(f"CONTENUTO:\n{raw['raw_text'][:char_limit]}")
 
-    content_block = "\n\n".join(content_parts)
+    content_block = "\n\n".join(parts)
 
-    return f"""Sei un assistente che archivia contenuti su Notion.
-Analizza questo {label} e restituisci SOLO un JSON valido con questa struttura:
+    return f"""Sei un archivista AI specializzato nella catalogazione di contenuti per un database Notion personale.
+
+Analizza questo {label} e restituisci SOLO un oggetto JSON valido con questa struttura:
 
 {{
-  "title": "Titolo riformulato, accattivante, max 80 caratteri. Non copiare il titolo originale.",
+  "title": "Titolo originale e descrittivo, max 80 caratteri. Non copiare il titolo originale verbatim.",
   "bullets": [
-    "Punto chiave 1 — frase completa e informativa",
-    "Punto chiave 2 — frase completa e informativa",
-    "Punto chiave 3 — frase completa e informativa"
+    "Punto 1: idea chiave specifica con dati/fatti concreti se disponibili",
+    "Punto 2: idea chiave specifica con dati/fatti concreti se disponibili",
+    "Punto 3: idea chiave specifica con dati/fatti concreti se disponibili"
   ],
-  "tags": ["tag1", "tag2", "tag3"],
-  "language": "it|en|es|fr|de|..."
+  "tags": ["tag-specifico-1", "tag-specifico-2", "tag-specifico-3"],
+  "categoria": "una categoria",
+  "language": "it"
 }}
 
-Regole:
-- bullets: 3-5 punti, ognuno autonomo e specifico. Evita genericità.
-- tags: 3-5 tag specifici senza #, es. "machinelearning", "politicaitaliana". No tag generici come "video" o "articolo".
-- language: codice ISO 639-1 della lingua del contenuto originale.
-- Rispondi SOLO con il JSON, nessun testo prima o dopo.
+REGOLE OBBLIGATORIE:
+- title: max 80 caratteri. Cattura l'essenza in modo originale e informativo.
+- bullets: 3-5 punti. Frasi complete con informazioni SPECIFICHE. Vietato: "Il video parla di...", genericità, ripetizioni.
+- tags: 3-6 tag SPECIFICI senza #, in minuscolo, con trattini per le parole composte.
+  OTTIMI: "llm-fine-tuning", "serie-a-calcio", "politica-italiana", "startup-fundraising", "react-hooks"
+  VIETATI: "video", "articolo", "web", "news", "contenuto", "link", "post"
+- categoria: scegli ESATTAMENTE una tra: {categorie_str}
+- language: codice ISO 639-1 (it, en, es, fr, de, ...)
+- Rispondi SOLO con il JSON. Zero testo prima o dopo. Zero markdown fence.
 
---- CONTENUTO DA ANALIZZARE ---
+--- CONTENUTO ---
 {content_block}
 """
 
@@ -87,7 +82,7 @@ Regole:
 async def summarize_content(raw: dict, source_type: str = "web") -> dict:
     prompt = build_prompt(raw, source_type)
 
-    async with httpx.AsyncClient(timeout=45) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
             json={
@@ -102,34 +97,50 @@ async def summarize_content(raw: dict, source_type: str = "web") -> dict:
             },
         )
         resp.raise_for_status()
-        data = resp.json()
 
-    raw_response = data["content"][0]["text"].strip()
+    raw_text = resp.json()["content"][0]["text"].strip()
 
-    if raw_response.startswith("```"):
-        raw_response = raw_response.split("```")[1]
-        if raw_response.startswith("json"):
-            raw_response = raw_response[4:]
-    raw_response = raw_response.strip()
+    # Pulizia fence markdown
+    if raw_text.startswith("```"):
+        parts = raw_text.split("```")
+        raw_text = parts[1][4:] if parts[1].startswith("json") else parts[1]
+    raw_text = raw_text.strip()
 
     try:
-        summary = json.loads(raw_response)
+        summary = json.loads(raw_text)
     except json.JSONDecodeError as e:
-        logger.error(f"JSON parse error: {e}\nRisposta: {raw_response}")
+        logger.error(f"JSON parse error: {e} | risposta: {raw_text[:300]}")
         summary = {
-            "title": raw.get("title", "Contenuto senza titolo")[:80],
-            "bullets": ["Contenuto estratto — vedi pagina Notion per dettagli."],
+            "title": (raw.get("title") or "Contenuto archiviato")[:80],
+            "bullets": ["Contenuto archiviato — vedi pagina Notion per i dettagli."],
             "tags": [source_type],
+            "categoria": "Altro",
             "language": "it",
         }
 
-    # Metadati aggiuntivi
-    summary["source_type"] = source_type
-    summary["original_title"] = raw.get("title", "")
-    summary["source_url"] = raw.get("source_url", "")
-    summary["author"] = raw.get("author", "")
-    summary["published_date"] = raw.get("published_date", "")
-    summary["file_name"] = raw.get("file_name", "")
-    summary["pages"] = raw.get("pages", 0)
+    # Normalizza tag: lowercase, trattini, no caratteri strani
+    import re
+    clean_tags = []
+    for t in summary.get("tags", []):
+        t = re.sub(r"[^a-z0-9àèéìòùa-z\-_]", "", t.lower().replace(" ", "-"))
+        if 2 <= len(t) <= 60:
+            clean_tags.append(t)
+    summary["tags"] = list(dict.fromkeys(clean_tags))[:6]
+
+    # Validazione categoria
+    if summary.get("categoria") not in CATEGORIE:
+        summary["categoria"] = "Altro"
+
+    # Metadati passthrough
+    summary.update({
+        "source_type":    source_type,
+        "original_title": raw.get("title", ""),
+        "source_url":     raw.get("source_url", ""),
+        "author":         raw.get("author", ""),
+        "published_date": raw.get("published_date", ""),
+        "file_name":      raw.get("file_name", ""),
+        "pages":          raw.get("pages", 0),
+        "duration":       raw.get("duration", ""),
+    })
 
     return summary

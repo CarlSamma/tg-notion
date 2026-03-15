@@ -1,69 +1,109 @@
 """
-State manager per il flusso AItagger.
+State manager — job pendenti e flusso tag custom.
 
-Quando un contenuto è pronto per essere archiviato ma aspetta
-la scelta dei tag da parte dell'utente, salviamo il "job" in memoria.
-
-Struttura di ogni job:
+Job structure:
 {
-    "summary": {...},          # output del summarizer
-    "source_url": str,
-    "source_type": str,
-    "file_name": str,
-    "telegram_link": str,      # link al messaggio originale Telegram
-    "selected_tags": set(),    # tag scelti dall'utente via keyboard
-    "message_id": int,         # ID del messaggio keyboard inviato dal bot
+    "summary":       dict,      # output summarizer
+    "source_url":    str,
+    "source_type":   str,
+    "file_name":     str,
+    "tg_link":       str,
+    "top_tags":      list[str], # cache top tag al momento della creazione
+    "message_id":    int,       # ID messaggio keyboard
+    "selected_tags": set[str],  # tag scelti dalla keyboard (AI + libreria)
+    "custom_tags":   list[str], # tag scritti manualmente dall'utente
 }
 
-Key: chat_id (int)
-Nota: un solo job pendente per chat alla volta (sovrascrive il precedente).
+Modalità "awaiting_custom": bot aspetta che l'utente scriva tag in testo libero.
 """
 
 from datetime import datetime, timedelta
 
-# { chat_id: { "job": {...}, "expires": datetime } }
 _pending: dict = {}
-
-JOB_TTL_MINUTES = 30  # job scade dopo 30 minuti senza risposta
+_awaiting_custom: set = set()
+JOB_TTL = 60  # minuti
 
 
 def save_pending(chat_id: int, job: dict) -> None:
-    """Salva un job in attesa per la chat specificata."""
     job.setdefault("selected_tags", set())
+    job.setdefault("custom_tags", [])
     _pending[chat_id] = {
         "job": job,
-        "expires": datetime.utcnow() + timedelta(minutes=JOB_TTL_MINUTES),
+        "expires": datetime.utcnow() + timedelta(minutes=JOB_TTL),
     }
 
 
 def get_pending(chat_id: int) -> dict | None:
-    """Restituisce il job pendente per la chat, o None se assente/scaduto."""
     entry = _pending.get(chat_id)
     if not entry:
         return None
     if datetime.utcnow() > entry["expires"]:
-        del _pending[chat_id]
+        _pending.pop(chat_id, None)
+        _awaiting_custom.discard(chat_id)
         return None
     return entry["job"]
 
 
-def update_selected_tags(chat_id: int, tag: str) -> set[str] | None:
-    """
-    Aggiunge o rimuove un tag dalla selezione (toggle).
-    Restituisce il set aggiornato, o None se job non trovato.
-    """
+def toggle_tag(chat_id: int, tag: str) -> set[str] | None:
+    """Toggle tag nella keyboard. Restituisce set aggiornato o None se job scaduto."""
     job = get_pending(chat_id)
     if job is None:
         return None
-    selected = job["selected_tags"]
-    if tag in selected:
-        selected.discard(tag)
+    s = job["selected_tags"]
+    if tag in s:
+        s.discard(tag)
     else:
-        selected.add(tag)
-    return selected
+        s.add(tag)
+    return s
+
+
+def add_custom_tags(chat_id: int, tags: list[str]) -> bool:
+    """Aggiunge tag custom. Restituisce True se OK."""
+    job = get_pending(chat_id)
+    if job is None:
+        return False
+    existing = {t.lower() for t in job["custom_tags"]} | {t.lower() for t in job["selected_tags"]}
+    for t in tags:
+        t = t.strip().lower()
+        if t and t not in existing:
+            job["custom_tags"].append(t)
+            existing.add(t)
+    return True
+
+
+def set_awaiting_custom(chat_id: int, value: bool) -> None:
+    if value:
+        _awaiting_custom.add(chat_id)
+    else:
+        _awaiting_custom.discard(chat_id)
+
+
+def is_awaiting_custom(chat_id: int) -> bool:
+    return chat_id in _awaiting_custom
 
 
 def clear_pending(chat_id: int) -> dict | None:
-    """Rimuove e restituisce il job pendente."""
+    _awaiting_custom.discard(chat_id)
     entry = _pending.pop(chat_id, None)
     return entry["job"] if entry else None
+
+
+def get_final_tags(job: dict) -> list[str]:
+    """
+    Restituisce la lista finale di tag nell'ordine corretto:
+    1. Tag AI (dal summarizer) — sempre prima
+    2. Tag scelti dalla keyboard (libreria)
+    3. Tag custom scritti dall'utente
+    Deduplicati, max 15.
+    """
+    ai_tags   = job.get("summary", {}).get("tags", [])
+    sel_tags  = list(job.get("selected_tags", set()))
+    cust_tags = job.get("custom_tags", [])
+
+    seen, result = set(), []
+    for t in ai_tags + sel_tags + cust_tags:
+        t = t.strip().lower()
+        if t and t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result[:15]
