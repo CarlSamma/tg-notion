@@ -20,6 +20,12 @@ Ngrok/
 # Various docs (se non vuoi committarli)
 # various docs/
 
+# Claude Code
+.claude/
+
+# Local copies
+copia.example
+
 # IDE
 .vscode/*
 !.vscode/launch.json
