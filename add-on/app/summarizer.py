@@ -15,14 +15,14 @@ SOURCE_LABELS = {
     "twitter": "Post Twitter/X","threads": "Post Threads",
     "web":     "Articolo Web",  "pdf":     "Documento PDF",
     "pdf_url": "Documento PDF", "image":   "Immagine",
-    "note":    "Nota",
+    "note":    "Nota",          "audio":   "Nota Vocale",
 }
 
 CHAR_LIMITS = {
     "web": 9000, "youtube": 9000, "vimeo": 9000,
     "twitter": 6000, "threads": 6000,
     "pdf": 10000, "pdf_url": 10000,
-    "image": 6000, "note": 6000,
+    "image": 6000, "note": 6000, "audio": 6000,
 }
 
 CATEGORIE = [

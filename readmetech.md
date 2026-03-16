@@ -12,7 +12,7 @@ Step-by-step guide to run the **Telegram → Notion Archiver** bot locally.
 | Git | any | to clone the repo |
 | Telegram account | — | bot created via @BotFather |
 | Notion account | — | integration created at notion.so/my-integrations |
-| Anthropic account | — | API key from console.anthropic.com |
+| OpenRouter account | — | API key from openrouter.ai |
 | ngrok *(optional)* | any | only needed to receive real Telegram messages locally |
 
 ---
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 Installed packages:
 - `fastapi` — web framework for the webhook server
 - `uvicorn[standard]` — ASGI server
-- `httpx` — async HTTP client (Telegram, Notion, Anthropic calls)
+- `httpx` — async HTTP client (Telegram, Notion, OpenRouter calls)
 - `pypdf` — PDF text extraction
 - `python-multipart` — multipart form support
 - `python-dotenv` — loads `.env` file automatically
@@ -81,7 +81,7 @@ Open `.env` and fill in your real values:
 ```env
 TELEGRAM_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 NOTION_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 WEBHOOK_SECRET=any_random_string_you_choose
 NOTION_PARENT_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # optional
 ```
@@ -99,10 +99,10 @@ NOTION_PARENT_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # optional
 3. Copy the token from the **Secrets** section (starts with `ntn_`)
 4. **Critical:** open the Notion page where the database will live → click `...` (top right) → **Connect to** → select your integration
 
-**ANTHROPIC_API_KEY**
-1. Go to [console.anthropic.com](https://console.anthropic.com)
-2. Navigate to **API Keys** → **Create Key**
-3. Copy the key (starts with `sk-ant-api03-`)
+**OPENROUTER_API_KEY**
+1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
+2. Click **Create Key**
+3. Copy the key (starts with `sk-or-v1-`)
 
 **NOTION_PARENT_PAGE_ID** *(optional)*
 1. Open the Notion page where you want the database created
@@ -187,7 +187,7 @@ Open the chat in Telegram Web (`https://web.telegram.org/a/#-1003897321914`) —
 INFO      Update ricevuto: 100000001
 INFO      HTTP Request: POST .../sendChatAction "HTTP/1.1 200 OK"   ← typing indicator
 INFO      HTTP Request: GET https://example.com/article "HTTP/1.1 200 OK"   ← content fetched
-INFO      HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"   ← AI summarized
+INFO      HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"   ← AI summarized
 INFO      HTTP Request: POST .../sendMessage "HTTP/1.1 200 OK"   ← tag keyboard sent to Telegram
 ```
 

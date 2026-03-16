@@ -1,0 +1,50 @@
+Ottimo. Prima leggo tutto il codice attuale per capire esattamente dove siamo.Ho tutto il quadro. Ora progetto i miglioramenti completi prima di scrivere una sola riga:
+
+**Cosa aggiungo:**
+1. **Tag custom da testo** — pulsante "✏️ Aggiungi tag" → bot chiede risposta testuale → parsing `#tag1 #tag2` o `tag1, tag2` → aggiunti alla selezione
+2. **Keyboard più ricca** — mostra sia top-5 (libreria) sia tag AI suggeriti come selezionabili, separati visivamente
+3. **Stato "awaiting_custom_tag"** in `state.py` per gestire l'input testo
+4. **Preview finale** più chiara con distinzione tag-AI / tag-libreria / tag-custom
+5. **Notion**: campo `Categoria` auto-inferita dall'AI (macro-topic per navigazione database)
+6. **`/status` command** — bot risponde con statistiche archivio (N contenuti, top tag, ultimo archiviato)
+7. **Migliore gestione audio** — voice messages Telegram → trascrizione con Whisper
+8. **Error recovery** — se archiviazione Notion fallisce, bot offre retryOra aggiorno `extractor.py` aggiungendo `transcribe_audio`:Syntax check completo:Tutto pulito. Pacchetto:Tutto validato. Riepilogo preciso di ogni miglioramento:
+
+---
+
+## Cosa è cambiato
+
+### Tag — flusso completamente ridisegnato (`tagger.py` + `state.py` + `handlers.py`)
+
+La keyboard ora ha **tre sezioni distinte**:
+
+```
+[✅ machinelearning]  [✅ python]      ← tag AI (pre-selezionati, togglabili)
+──── libreria ────
+[🏷️ startup]         [🏷️ design]      ← top tag libreria (off, selezionabili)
+[🏷️ politica]
+[✏️ Aggiungi tag...]                   ← apre input testo libero
+[✅ Archivia  (4 tag)]                 ← conta live i tag totali
+```
+
+L'utente preme "✏️ Aggiungi tag..." → bot risponde chiedendo il testo → l'utente scrive `#ai #llm` oppure `ai, llm` oppure `ai llm` → i tag vengono aggiunti e mostrati nella keyboard. Tutto senza ricaricare il flusso.
+
+Ordine finale garantito: **tag AI → tag libreria selezionati → tag custom**. Deduplicati, max 15.
+
+### Categoria (`summarizer.py` + `notion.py`)
+L'AI ora classifica ogni contenuto in una delle 12 macro-categorie (Tecnologia, AI, Business, Politica, Scienza, Design, Economia, Salute, Cultura, Sport, Intrattenimento, Altro). Diventa un campo `select` nel database Notion — filtro potentissimo per navigare l'archivio.
+
+### Note vocali (`extractor.py` + `handlers.py`)
+Il bot accetta messaggi vocali Telegram. Se è impostata `OPENAI_API_KEY`, usa Whisper per trascrivere. Poi la trascrizione va in pipeline normale (sintesi AI + tag + archiviazione). Senza `OPENAI_API_KEY` archivia un placeholder segnalando il gap.
+
+### Comando `/status` (`notion.py` + `handlers.py`)
+Invia `/status` al bot e ricevi: totale contenuti archiviati, top 5 tag, top 3 categorie, titolo dell'ultimo archiviato.
+
+### Comando `/help`
+Guida completa direttamente nel bot.
+
+### Error recovery (`handlers.py`)
+Se l'archiviazione Notion fallisce, il bot mostra titolo + bullet points in chat — il contenuto elaborato non va perso.
+
+### `OPENAI_API_KEY` — nuova variabile opzionale
+Aggiungila in Railway per abilitare Whisper. Senza di essa tutto funziona, le note vocali vengono archiviate senza trascrizione.

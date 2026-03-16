@@ -39,7 +39,7 @@ Per ogni contenuto viene creata su Notion una pagina con:
 - 3–5 bullet points con i punti chiave
 - Tag AI generati automaticamente
 - Tag aggiuntivi scelti dall'utente via inline keyboard
-- Metadati completi: autore, data, lingua, fonte, link al messaggio Telegram originale
+- Metadati completi: fonte, lingua, link al messaggio Telegram originale
 
 ---
 
@@ -311,8 +311,7 @@ Il database "Archivio Telegram" viene creato automaticamente all'avvio con quest
 | Link Telegram | URL | Link diretto al messaggio originale |
 | Tipo | Select | Categoria (YouTube, PDF, Articolo, ecc.) |
 | Tag | Multi-select | Tag AI + tag scelti dall'utente |
-| Autore | Rich text | Autore del contenuto (se disponibile) |
-| Data Contenuto | Date | Data di pubblicazione originale |
+| Fonte | Rich text | Dominio della fonte originale (se da URL) |
 | Data Archiviazione | Date | Data di archiviazione |
 | Lingua | Select | Lingua rilevata dal contenuto |
 

@@ -224,3 +224,51 @@ def _extract_author(html: str) -> str:
 def _extract_date(html: str) -> str:
     m = re.search(r'<meta[^>]+(?:name|property)=["\'](?:article:published_time|datePublished)["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
     return m.group(1)[:10] if m else ""
+
+
+async def transcribe_audio(audio_bytes: bytes, duration_seconds: int = 0) -> dict:
+    """
+    Trascrive una nota vocale usando Whisper API (OpenAI).
+    Fallback: se OPENAI_API_KEY non è impostata, usa Claude per descrivere l'audio.
+
+    Restituisce un dict compatibile con summarize_content().
+    """
+    import os
+
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    duration_str = f"{duration_seconds}s" if duration_seconds else "sconosciuta"
+
+    if openai_key:
+        # ── Whisper API ───────────────────────────────────────────────────────
+        try:
+            import io
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {openai_key}"},
+                    files={"file": ("audio.ogg", io.BytesIO(audio_bytes), "audio/ogg")},
+                    data={"model": "whisper-1", "response_format": "text"},
+                )
+                resp.raise_for_status()
+                transcript = resp.text.strip()
+
+            return {
+                "type": "audio",
+                "raw_text": transcript,
+                "title": transcript[:60] + ("…" if len(transcript) > 60 else ""),
+                "author": "",
+                "duration": duration_str,
+            }
+        except Exception as e:
+            logger.error(f"Errore Whisper API: {e}")
+            # Fallback sotto
+
+    # ── Fallback: nessuna trascrizione disponibile ─────────────────────────────
+    logger.warning("OPENAI_API_KEY non impostata — audio non trascrivibile. Archiviato come placeholder.")
+    return {
+        "type": "audio",
+        "raw_text": f"[Nota vocale — durata: {duration_str}. Trascrizione non disponibile: imposta OPENAI_API_KEY per abilitare Whisper.]",
+        "title": f"Nota vocale ({duration_str})",
+        "author": "",
+        "duration": duration_str,
+    }

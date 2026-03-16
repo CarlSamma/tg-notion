@@ -78,7 +78,7 @@ Optional:
 **`notion.py`** - Notion API integration
 - Database management: searches for existing "Archivio Telegram" database or creates it
 - Global `_DATABASE_ID` stores database ID after startup
-- Schema includes: Nome (title), URL, Link Telegram, Tipo (select), Tag (multi_select), Autore, Data Contenuto, Data Archiviazione, Lingua
+- Schema includes: Nome (title), URL, Link Telegram, Tipo (select), Tag (multi_select), Fonte, Data Archiviazione, Lingua
 - Page creation with structured blocks (heading, bullets, metadata, links)
 - NO sentiment field (was removed in v2)
 
