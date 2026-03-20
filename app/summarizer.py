@@ -8,7 +8,7 @@ import os, json, logging, httpx
 
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
 SOURCE_LABELS = {
     "youtube": "Video YouTube", "vimeo":   "Video Vimeo",
@@ -83,22 +83,27 @@ async def summarize_content(raw: dict, source_type: str = "web") -> dict:
     prompt = build_prompt(raw, source_type)
 
     async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-        )
-        resp.raise_for_status()
-
-    raw_text = resp.json()["content"][0]["text"].strip()
+        try:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                json={
+                    "model": "anthropic/claude-3.5-sonnet",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"} if source_type != "image" else None,
+                },
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "X-Title": "TG Notion Archiver",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            logger.error(f"Errore OpenRouter: {e}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Dettaglio errore: {e.response.text}")
+            raise
 
     # Pulizia fence markdown
     if raw_text.startswith("```"):

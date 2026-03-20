@@ -77,7 +77,7 @@ async def _search_database(title: str) -> str:
 
 async def _patch_database_schema(db_id: str) -> None:
     """
-    Aggiunge 'Fonte' al database se non è presente.
+    Aggiunge le colonne mancanti al database (es. 'Fonte', 'Lingua').
     Non tenta di eliminare vecchi campi (Notion API instabile per la cancellazione).
     """
     try:
@@ -86,18 +86,24 @@ async def _patch_database_schema(db_id: str) -> None:
             r.raise_for_status()
         existing_props = set(r.json().get("properties", {}).keys())
 
-        if "Fonte" in existing_props:
-            logger.info("Schema migration: 'Fonte' già presente, nessuna modifica")
+        new_props = {}
+        if "Fonte" not in existing_props:
+            new_props["Fonte"] = {"rich_text": {}}
+        if "Lingua" not in existing_props:
+            new_props["Lingua"] = {"select": {"options": []}}
+
+        if not new_props:
+            logger.info("Schema migration: Nessuna modifica necessaria, colonne già presenti")
             return
 
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.patch(
                 f"https://api.notion.com/v1/databases/{db_id}",
                 headers=NOTION_HEADERS,
-                json={"properties": {"Fonte": {"rich_text": {}}}},
+                json={"properties": new_props},
             )
         if r.status_code == 200:
-            logger.info("Schema migration: campo 'Fonte' aggiunto")
+            logger.info(f"Schema migration: campi aggiunti - {list(new_props.keys())}")
         else:
             logger.error(f"Schema migration error ({r.status_code}): {r.text[:300]}")
     except Exception as e:
