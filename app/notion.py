@@ -77,27 +77,44 @@ async def _search_database(title: str) -> str:
 
 async def _patch_database_schema(db_id: str) -> None:
     """
-    Aggiunge 'Fonte' al database se non è presente.
-    Non tenta di eliminare vecchi campi (Notion API instabile per la cancellazione).
+    Assicura che tutti i campi necessari siano presenti nel database.
     """
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(f"https://api.notion.com/v1/databases/{db_id}", headers=NOTION_HEADERS)
             r.raise_for_status()
-        existing_props = set(r.json().get("properties", {}).keys())
+        existing_props = r.json().get("properties", {})
 
-        if "Fonte" in existing_props:
-            logger.info("Schema migration: 'Fonte' già presente, nessuna modifica")
+        # Definizione dei campi obbligatori
+        required = {
+            "Fonte":              {"rich_text": {}},
+            "Lingua":             {"select": {"options": []}},
+            "Data Archiviazione": {"date": {}},
+            "Link Telegram":      {"url": {}},
+            "URL":                {"url": {}},
+            "Tipo":               {"select": {"options": []}},
+            "Categoria":          {"select": {"options": []}},
+            "Tag":                {"multi_select": {"options": []}},
+        }
+
+        to_add = {}
+        for name, prop_def in required.items():
+            if name not in existing_props:
+                to_add[name] = prop_def
+
+        if not to_add:
+            logger.info("Schema migration: tutti i campi necessari sono già presenti")
             return
 
+        logger.info(f"Schema migration: aggiunta campi mancanti: {list(to_add.keys())}")
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.patch(
                 f"https://api.notion.com/v1/databases/{db_id}",
                 headers=NOTION_HEADERS,
-                json={"properties": {"Fonte": {"rich_text": {}}}},
+                json={"properties": to_add},
             )
         if r.status_code == 200:
-            logger.info("Schema migration: campo 'Fonte' aggiunto")
+            logger.info("Schema migration: campi aggiunti con successo")
         else:
             logger.error(f"Schema migration error ({r.status_code}): {r.text[:300]}")
     except Exception as e:
